@@ -3,6 +3,8 @@ from asyncio import Task, create_task, gather
 from collections import deque
 
 
+# TODO: This class might not be necessary, since we might be able to
+# work with the coroutines directly.
 class Deferred(ABC):
     @abstractmethod
     async def result(self): ...
