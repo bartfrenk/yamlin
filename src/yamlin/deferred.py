@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
-from asyncio import Task, create_task, gather
+from asyncio import Task, create_task, gather, iscoroutine
 from collections import deque
+from logging import getLogger
+from time import time
+
+from yamlin.utils import log_time
+
+log = getLogger(__name__)
 
 
-# TODO: This class might not be necessary, since we might be able to
-# work with the coroutines directly.
 class Deferred(ABC):
     @abstractmethod
     async def result(self): ...
@@ -27,11 +31,15 @@ async def run_deferreds(obj) -> list[Task]:
         current = pending.popleft()
         if isinstance(current, (list, dict)):
             for key, value in indexed(current):
-                if isinstance(value, (list, dict)):
-                    pending.append(value)
-                if isinstance(value, Deferred):
-                    current[key] = create_task(value.result())
-                    tasks.append(current[key])
+                match value:
+                    case list() | dict():
+                        pending.append(value)
+                    case Deferred():
+                        current[key] = create_task(value.result())
+                        tasks.append(current[key])
+                    case _ if iscoroutine(value):
+                        current[key] = create_task(value)
+                        tasks.append(current[key])
     return tasks
 
 
@@ -43,16 +51,18 @@ async def replace_tasks(obj) -> None:
         current = pending.popleft()
         if isinstance(current, (list, dict)):
             for key, value in indexed(current):
-                if isinstance(value, (list, dict)):
-                    pending.append(value)
-                if isinstance(value, Task):
-                    current[key] = value.result()
+                match value:
+                    case Task():
+                        current[key] = value.result()
+                    case list() | dict():
+                        pending.append(value)
 
 
 async def force(obj, deep: bool = True) -> None:
     """Forces deferreds in the object concurrently."""
 
     async def make_single_pass():
+        start = time()
         tasks = await run_deferreds(obj)
         if tasks:
             await gather(*tasks)

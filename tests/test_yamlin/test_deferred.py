@@ -1,10 +1,18 @@
 from asyncio import sleep
 from time import time
-from typing import Any, Tuple
+from typing import Any, Tuple, TypeVar
 
 import pytest
 
 from yamlin.deferred import Deferred, force
+from yamlin.utils import measure
+
+T = TypeVar("T")
+
+
+async def with_delay(delay: int, result: T) -> T:
+    await sleep(delay)
+    return result
 
 
 class Box(Deferred):
@@ -23,12 +31,6 @@ class Wait(Deferred):
     async def result(self):
         await sleep(self.delay)
         return self.value
-
-
-async def measure(fn) -> float:
-    start = time()
-    await fn()
-    return time() - start
 
 
 @pytest.mark.asyncio
@@ -56,7 +58,7 @@ class TestForce:
 
     async def test_resolves_deferreds_concurrently(self):
         obj = {"a": Wait(1, delay=1), "b": Wait(2, delay=1)}
-        elapsed = await measure(lambda: force(obj))
+        elapsed, _ = await measure(lambda: force(obj))
         assert obj == {"a": 1, "b": 2}
         assert elapsed < 1.1
 
@@ -68,5 +70,39 @@ class TestForce:
     async def test_does_not_resolve_nested_deferreds_when_asked(self):
         deferred = Box(1)
         obj = {"a": Box(deferred)}
-        elapsed = await measure(lambda: force(obj, deep=False))
+        elapsed, _ = await measure(lambda: force(obj, deep=False))
         assert obj == {"a": deferred}
+
+    async def test_resolve_coroutines_to_values(self):
+        obj = {"a": with_delay(1, 1), "b": with_delay(1, 2)}
+        elapsed, _ = await measure(lambda: force(obj))
+        assert obj == {"a": 1, "b": 2}
+        assert elapsed < 1.1
+
+    async def test_resolves_lists_of_coroutines(self):
+        obj = {"a": [with_delay(1, 1), with_delay(1, 2)]}
+        elapsed, _ = await measure(lambda: force(obj))
+        assert obj == {"a": [1, 2]}
+        assert elapsed < 1.1
+
+    async def test_resolves_nested_structures(self):
+        obj = {"a": [with_delay(1, 1), {"b": with_delay(1, 2)}]}
+        elapsed, _ = await measure(lambda: force(obj))
+        assert obj == {"a": [1, {"b": 2}]}
+        assert elapsed < 1.1
+
+    async def test_resolves_nested_coroutines(self):
+        obj = {"a": with_delay(1, with_delay(1, 1))}
+        elapsed, _ = await measure(lambda: force(obj))
+        assert obj == {"a": 1}
+        assert elapsed < 2.1
+
+    @pytest.mark.skip(reason="This tests desired behavior that is not implemented yet.")
+    async def test_does_not_resolve_per_layer(self):
+        obj = {
+            "a": with_delay(2, 1),
+            "b": with_delay(1, [with_delay(1, 2), with_delay(1, 3)]),
+        }
+        elapsed, _ = await measure(lambda: force(obj))
+        assert obj == {"a": 1, "b": [2, 3]}
+        assert elapsed < 2.1
