@@ -60,7 +60,7 @@ async def gather(obj: Container, deep: bool = True) -> None:
     async def make_single_pass() -> bool:
         tasks = await spawn_tasks(obj)
         if tasks:
-            await asyncio.gather(*tasks)  # pyright: ignore[reportUnusedCallResult]
+            await asyncio.gather(*tasks)
             await resolve_tasks(obj)
             return True
         return False
