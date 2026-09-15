@@ -9,6 +9,7 @@ dependencies = ["pyyaml>=6.0.2"]
 
 [project.scripts]
 aero = "yamlin:main"
+yamlin = "yamlin.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
