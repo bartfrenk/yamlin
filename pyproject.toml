@@ -5,7 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Bart Frenk", email = "bart.frenk@gmail.com" }]
 requires-python = ">=3.12"
-dependencies = ["pyyaml>=6.0.2"]
+dependencies = [
+    "keyring>=25.7.0",
+    "pyyaml>=6.0.2",
+]
 
 [project.scripts]
 yamlin = "yamlin.__main__:main"
