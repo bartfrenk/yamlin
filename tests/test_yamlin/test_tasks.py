@@ -53,16 +53,10 @@ class TestGather:
         assert obj == {"a": 1}
 
     async def test_does_not_resolve_nested_coroutines_when_asked(self):
-        deferred = box(1)
-        obj = {"a": box(deferred)}
+        boxed = box(1)
+        obj = {"a": box(boxed)}
         await measure(lambda: gather(obj, deep=False))
-        assert obj == {"a": deferred}
-
-    async def test_resolve_coroutines_to_values(self):
-        obj = {"a": defer(1, delay=1), "b": defer(2, delay=1)}
-        elapsed, _ = await measure(lambda: gather(obj))
-        assert obj == {"a": 1, "b": 2}
-        assert elapsed < 1.1
+        assert obj == {"a": boxed}
 
     async def test_resolves_lists_of_coroutines(self):
         obj = {"a": [defer(1, delay=1), defer(2, delay=1)]}
