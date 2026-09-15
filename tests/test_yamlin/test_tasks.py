@@ -4,7 +4,7 @@ from typing import Any, Tuple, TypeVar
 
 import pytest
 
-from yamlin.deferred import gather
+from yamlin.tasks import gather
 from yamlin.utils import measure
 
 T = TypeVar("T")
