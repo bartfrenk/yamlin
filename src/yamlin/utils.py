@@ -1,5 +1,6 @@
+from collections.abc import Awaitable
 from time import time
-from typing import Awaitable, Callable, TypeAlias, TypeVar
+from typing import Callable, TypeAlias, TypeVar
 
 T = TypeVar("T")
 
