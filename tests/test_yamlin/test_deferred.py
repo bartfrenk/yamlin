@@ -4,7 +4,7 @@ from typing import Any, Tuple, TypeVar
 
 import pytest
 
-from yamlin.deferred import Deferred, force
+from yamlin.deferred import force
 from yamlin.utils import measure
 
 T = TypeVar("T")
@@ -15,22 +15,13 @@ async def with_delay(delay: int, result: T) -> T:
     return result
 
 
-class Box(Deferred):
-    def __init__(self, value):
-        self.value = value
-
-    async def result(self):
-        return self.value
+async def box(value: T) -> T:
+    return value
 
 
-class Wait(Deferred):
-    def __init__(self, value, *, delay=1):
-        self.value = value
-        self.delay = delay
-
-    async def result(self):
-        await sleep(self.delay)
-        return self.value
+async def wait(value: T, *, delay: int = 1) -> T:
+    await sleep(delay)
+    return value
 
 
 @pytest.mark.asyncio
@@ -41,35 +32,35 @@ class TestForce:
         await force(obj)
         assert obj == {"a": 1, "b": 2}
 
-    async def test_replaces_deferreds_by_values_in_dict(self):
-        obj = {"a": Box(1), "b": Box(2)}
+    async def test_replaces_coroutines_by_values_in_dict(self):
+        obj = {"a": box(1), "b": box(2)}
         await force(obj)
         assert obj == {"a": 1, "b": 2}
 
-    async def test_replaces_deferreds_by_values_in_list(self):
-        obj = [Box(1), Box(2)]
+    async def test_replaces_coroutines_by_values_in_list(self):
+        obj = [box(1), box(2)]
         await force(obj)
         assert obj == [1, 2]
 
-    async def test_replaces_deferreds_by_values_in_layered_object(self):
-        obj = {"a": [Box(1), Box(2)], "b": {"c": Box(3)}}
+    async def test_replaces_coroutines_by_values_in_layered_object(self):
+        obj = {"a": [box(1), box(2)], "b": {"c": box(3)}}
         await force(obj)
         assert obj == {"a": [1, 2], "b": {"c": 3}}
 
-    async def test_resolves_deferreds_concurrently(self):
-        obj = {"a": Wait(1, delay=1), "b": Wait(2, delay=1)}
+    async def test_resolves_coroutines_concurrently(self):
+        obj = {"a": wait(1, delay=1), "b": wait(2, delay=1)}
         elapsed, _ = await measure(lambda: force(obj))
         assert obj == {"a": 1, "b": 2}
         assert elapsed < 1.1
 
-    async def test_resolves_nested_deferreds_by_default(self):
-        obj = {"a": Box(Box(1))}
+    async def test_resolves_nested_coroutines_by_default(self):
+        obj = {"a": box(box(1))}
         elapsed = await measure(lambda: force(obj))
         assert obj == {"a": 1}
 
-    async def test_does_not_resolve_nested_deferreds_when_asked(self):
-        deferred = Box(1)
-        obj = {"a": Box(deferred)}
+    async def test_does_not_resolve_nested_coroutines_when_asked(self):
+        deferred = box(1)
+        obj = {"a": box(deferred)}
         elapsed, _ = await measure(lambda: force(obj, deep=False))
         assert obj == {"a": deferred}
 

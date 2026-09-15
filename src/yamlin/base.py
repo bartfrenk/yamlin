@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from asyncio import Task, create_task, gather, run, sleep
-from dataclasses import dataclass
+from asyncio import run, sleep
 from logging import getLogger
 
 import yaml
-from yaml import Loader, Node, SafeLoader, add_constructor
+from yaml import Node, SafeLoader, add_constructor
+
+from yamlin.deferred import force
 
 log = getLogger(__name__)
 
@@ -24,19 +25,9 @@ class ConfigLoader(SafeLoader):
         add_constructor("!sleep", SleepResolver("!sleep"), Loader=ConfigLoader)
 
 
-@dataclass
-class Deferred:
-    resolver: Resolver
-    node: Node
-    loader: Loader
-
-    async def get(self):
-        return await self.resolver.resolve(self.loader, self.node)
-
-
 class Resolver(ABC):
     def __call__(self, loader, node: Node):
-        return Deferred(node=node, resolver=self, loader=loader)
+        return self.resolve(loader, node)
 
     @abstractmethod
     async def resolve(self, loader, node: Node): ...
@@ -50,58 +41,3 @@ class SleepResolver(Resolver):
         n = loader.construct_yaml_int(node)
         await sleep(n)
         return n
-
-
-async def force(obj):
-
-    async def recur(tasks, obj):
-        match obj:
-            case Deferred(resolver=resolver, node=node, loader=loader):
-                task = create_task(resolver.resolve(loader, node))
-                tasks.append(task)
-                return task
-            case dict():
-                for k, v in obj.items():
-                    obj[k] = await recur(tasks, v)
-                return obj
-            case list():
-                for i, v in enumerate(obj):
-                    obj[i] = await recur(tasks, v)
-                return obj
-
-    tasks = []
-    result = await recur(tasks, obj)
-    print(tasks)
-    await gather(*tasks)
-    return result
-
-
-def result(obj):
-
-    def recur(obj):
-        match obj:
-            case Task():
-                return obj.result()
-            case dict():
-                for k, v in obj.items():
-                    obj[k] = recur(v)
-                return obj
-            case list():
-                for i, v in enumerate(obj):
-                    obj[i] = recur(v)
-                return obj
-
-    return recur(obj)
-
-
-async def main():
-    import devtools
-
-    with open("config.yaml") as f:
-        obj = yaml.load(f, Loader=ConfigLoader)
-        devtools.pprint(obj)
-        print(result(await force(obj)))
-
-
-if __name__ == "__main__":
-    run(main())

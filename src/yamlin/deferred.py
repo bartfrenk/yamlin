@@ -1,17 +1,8 @@
-from abc import ABC, abstractmethod
 from asyncio import Task, create_task, gather, iscoroutine
 from collections import deque
 from logging import getLogger
-from time import time
-
-from yamlin.utils import log_time
 
 log = getLogger(__name__)
-
-
-class Deferred(ABC):
-    @abstractmethod
-    async def result(self): ...
 
 
 def indexed(obj: dict | list):
@@ -23,7 +14,7 @@ def indexed(obj: dict | list):
 
 
 async def run_deferreds(obj) -> list[Task]:
-    """Runs all deferred tasks in the object and returns a list of tasks."""
+    """Wraps coroutines found in the object in tasks and returns them."""
     pending = deque([obj])
     tasks = []
 
@@ -34,9 +25,6 @@ async def run_deferreds(obj) -> list[Task]:
                 match value:
                     case list() | dict():
                         pending.append(value)
-                    case Deferred():
-                        current[key] = create_task(value.result())
-                        tasks.append(current[key])
                     case _ if iscoroutine(value):
                         current[key] = create_task(value)
                         tasks.append(current[key])
@@ -59,10 +47,9 @@ async def replace_tasks(obj) -> None:
 
 
 async def force(obj, deep: bool = True) -> None:
-    """Forces deferreds in the object concurrently."""
+    """Forces coroutines in the object concurrently."""
 
     async def make_single_pass():
-        start = time()
         tasks = await run_deferreds(obj)
         if tasks:
             await gather(*tasks)
