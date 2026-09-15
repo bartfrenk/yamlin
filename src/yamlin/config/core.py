@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from asyncio import sleep
 from collections.abc import Coroutine
 from logging import getLogger
-from typing import IO, Generic, TypeVar, final
+from typing import IO, Generic, TypeVar, final, override
 
 from yaml import Node, SafeLoader, ScalarNode, add_constructor
 
@@ -43,9 +43,8 @@ class SleepResolver(Resolver[int]):
     def __init__(self, tag: str) -> None:
         self.tag: str = tag
 
-    async def resolve(  # pyright: ignore[reportImplicitOverride]
-        self, loader: ConfigLoader, node: Node
-    ) -> int:
+    @override
+    async def resolve(self, loader: ConfigLoader, node: Node) -> int:
         assert isinstance(node, ScalarNode)
         n = loader.construct_yaml_int(node)
         await sleep(n)
