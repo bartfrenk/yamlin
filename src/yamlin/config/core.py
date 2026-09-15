@@ -7,8 +7,6 @@ from logging import getLogger
 import yaml
 from yaml import Node, SafeLoader, add_constructor
 
-from yamlin.deferred import force
-
 log = getLogger(__name__)
 
 

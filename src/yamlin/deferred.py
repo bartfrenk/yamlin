@@ -1,59 +1,59 @@
-from asyncio import Task, create_task, gather, iscoroutine
+import asyncio
 from collections import deque
 from logging import getLogger
 
 log = getLogger(__name__)
 
 
-def indexed(obj: dict | list):
-    """Helper function to iterate over indexed collections."""
+def iter_entries(obj: dict | list):
+    """Yields (key, value) pairs for dicts and (index, value) pairs for lists."""
     if isinstance(obj, dict):
         yield from obj.items()
     if isinstance(obj, list):
         yield from enumerate(obj)
 
 
-async def run_deferreds(obj) -> list[Task]:
-    """Wraps coroutines found in the object in tasks and returns them."""
+async def spawn_tasks(obj) -> list[asyncio.Task]:
+    """Wraps every coroutine found anywhere in the object in a task, in place."""
     pending = deque([obj])
     tasks = []
 
     while pending:
         current = pending.popleft()
         if isinstance(current, (list, dict)):
-            for key, value in indexed(current):
+            for key, value in iter_entries(current):
                 match value:
                     case list() | dict():
                         pending.append(value)
-                    case _ if iscoroutine(value):
-                        current[key] = create_task(value)
+                    case _ if asyncio.iscoroutine(value):
+                        current[key] = asyncio.create_task(value)
                         tasks.append(current[key])
     return tasks
 
 
-async def replace_tasks(obj) -> None:
-    """Replaces all tasks in the object by their results."""
+async def resolve_tasks(obj) -> None:
+    """Replaces every task found anywhere in the object by its result."""
     pending = deque([obj])
 
     while pending:
         current = pending.popleft()
         if isinstance(current, (list, dict)):
-            for key, value in indexed(current):
+            for key, value in iter_entries(current):
                 match value:
-                    case Task():
+                    case asyncio.Task():
                         current[key] = value.result()
                     case list() | dict():
                         pending.append(value)
 
 
-async def force(obj, deep: bool = True) -> None:
-    """Forces coroutines in the object concurrently."""
+async def gather(obj, deep: bool = True) -> None:
+    """Gathers coroutines in the object concurrently, replacing them with their results."""
 
     async def make_single_pass():
-        tasks = await run_deferreds(obj)
+        tasks = await spawn_tasks(obj)
         if tasks:
-            await gather(*tasks)
-            await replace_tasks(obj)
+            await asyncio.gather(*tasks)
+            await resolve_tasks(obj)
             return True
         return False
 
