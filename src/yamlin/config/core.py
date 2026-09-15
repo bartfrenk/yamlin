@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from asyncio import sleep
 from collections.abc import Coroutine
 from logging import getLogger
+from os import environ
 from typing import IO, Generic, TypeVar, final, override
 
 from keyring import get_password
@@ -29,6 +30,7 @@ class ConfigLoader(SafeLoader):
         super().__init__(stream)
         add_constructor("!sleep", SleepResolver("!sleep"), Loader=ConfigLoader)
         add_constructor("!keychain", KeychainResolver("!keychain"), Loader=ConfigLoader)
+        add_constructor("!env", EnvResolver("!env"), Loader=ConfigLoader)
 
 
 class Resolver(ABC, Generic[T]):
@@ -66,3 +68,17 @@ class KeychainResolver(Resolver[str]):
         if password is None:
             raise YamlinError(self.tag, f"no keychain entry found for {value!r}")
         return password
+
+
+class EnvResolver(Resolver[str]):
+    def __init__(self, tag: str) -> None:
+        self.tag: str = tag
+
+    @override
+    async def resolve(self, loader: ConfigLoader, node: Node) -> str:
+        assert isinstance(node, ScalarNode)
+        name = loader.construct_scalar(node)
+        value = environ.get(name)
+        if value is None:
+            raise YamlinError(self.tag, f"environment variable {name!r} is not set")
+        return value
