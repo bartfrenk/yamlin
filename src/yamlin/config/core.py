@@ -28,15 +28,11 @@ class ConfigLoader(SafeLoader):
     def __init__(self, stream: _ReadStream) -> None:
         super().__init__(stream)
         add_constructor("!sleep", SleepResolver("!sleep"), Loader=ConfigLoader)
-        add_constructor(
-            "!keychain", KeychainResolver("!keychain"), Loader=ConfigLoader
-        )
+        add_constructor("!keychain", KeychainResolver("!keychain"), Loader=ConfigLoader)
 
 
 class Resolver(ABC, Generic[T]):
-    def __call__(
-        self, loader: ConfigLoader, node: Node
-    ) -> Coroutine[object, object, T]:
+    def __call__(self, loader: ConfigLoader, node: Node) -> Coroutine[object, object, T]:
         return self.resolve(loader, node)
 
     @abstractmethod
