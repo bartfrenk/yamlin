@@ -1,4 +1,5 @@
 import sys
+from argparse import ArgumentParser
 from asyncio import run
 
 import yaml
@@ -13,8 +14,29 @@ async def resolve(text: str) -> str:
     return yaml.dump(obj)
 
 
+def parse_args() -> tuple[str | None, str | None]:
+    parser = ArgumentParser(description="Resolve a YAML config.")
+    parser.add_argument("-f", "--file", help="input file (default: stdin)")
+    parser.add_argument("-o", "--output", help="output file (default: stdout)")
+    args = parser.parse_args()
+    return args.file, args.output  # pyright: ignore[reportAny]
+
+
 def main() -> None:
-    sys.stdout.write(run(resolve(sys.stdin.read())))
+    input_path, output_path = parse_args()
+    if input_path:
+        with open(input_path) as f:
+            text = f.read()
+    else:
+        text = sys.stdin.read()
+
+    result = run(resolve(text))
+
+    if output_path:
+        with open(output_path, "w") as f:
+            f.write(result)
+    else:
+        sys.stdout.write(result)
 
 
 if __name__ == "__main__":
