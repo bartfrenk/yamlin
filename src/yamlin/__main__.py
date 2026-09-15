@@ -1,42 +1,42 @@
 import sys
 from argparse import ArgumentParser
 from asyncio import run
+from collections.abc import Generator
+from contextlib import contextmanager
+from pathlib import Path
+from typing import IO
 
 import yaml
 
-from yamlin.config.core import ConfigLoader
-from yamlin.tasks import gather
+from yamlin.facade import read_stream
 
 
-async def resolve(text: str) -> str:
-    obj = yaml.load(text, Loader=ConfigLoader)  # pyright: ignore[reportAny]
-    await gather(obj)  # pyright: ignore[reportAny]
-    return yaml.dump(obj)
-
-
-def parse_args() -> tuple[str | None, str | None]:
+def parse_args() -> tuple[Path | None, Path | None]:
     parser = ArgumentParser(description="Resolve a YAML config.")
-    parser.add_argument("-f", "--file", help="input file (default: stdin)")
-    parser.add_argument("-o", "--output", help="output file (default: stdout)")
+    parser.add_argument("-f", "--file", type=Path, help="input file (default: stdin)")
+    parser.add_argument("-o", "--output", type=Path, help="output file (default: stdout)")
     args = parser.parse_args()
     return args.file, args.output  # pyright: ignore[reportAny]
 
 
+@contextmanager
+def open_stream(path: Path | None, *, fallback: IO[str]) -> Generator[IO[str], object, object]:
+    if path:
+        with open(path) as stream:
+            yield stream
+    else:
+        yield fallback
+
+
 def main() -> None:
     input_path, output_path = parse_args()
-    if input_path:
-        with open(input_path) as f:
-            text = f.read()
-    else:
-        text = sys.stdin.read()
+    with open_stream(input_path, fallback=sys.stdin) as stream:
+        obj = run(read_stream(stream))
 
-    result = run(resolve(text))
+    result = yaml.dump(obj)
 
-    if output_path:
-        with open(output_path, "w") as f:
-            f.write(result)
-    else:
-        sys.stdout.write(result)
+    with open_stream(output_path, fallback=sys.stdout) as stream:
+        stream.write(result)
 
 
 if __name__ == "__main__":
