@@ -12,7 +12,7 @@ uv add yamlin
 
 ## Tags
 
-- `!keychain <service>/<secret id>` — looks up a secret via
+- `!keyring <service>/<secret id>` — looks up a secret via
   [`keyring`](https://pypi.org/project/keyring/).
 - `!env <NAME>` — looks up an environment variable.
 - `!sleep <seconds>` — waits, then resolves to the number of seconds
@@ -23,7 +23,7 @@ uv add yamlin
 ```yaml
 # config.yaml
 database:
-  password: !keychain myapp/db-password
+  password: !keyring myapp/db-password
   host: !env DB_HOST
 ```
 

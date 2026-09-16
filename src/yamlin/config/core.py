@@ -29,7 +29,7 @@ class ConfigLoader(SafeLoader):
     def __init__(self, stream: _ReadStream) -> None:
         super().__init__(stream)
         add_constructor("!sleep", SleepResolver("!sleep"), Loader=ConfigLoader)
-        add_constructor("!keychain", KeychainResolver("!keychain"), Loader=ConfigLoader)
+        add_constructor("!keyring", KeyringResolver("!keyring"), Loader=ConfigLoader)
         add_constructor("!env", EnvResolver("!env"), Loader=ConfigLoader)
 
 
@@ -53,7 +53,7 @@ class SleepResolver(Resolver[int]):
         return n
 
 
-class KeychainResolver(Resolver[str]):
+class KeyringResolver(Resolver[str]):
     def __init__(self, tag: str) -> None:
         self.tag: str = tag
 
