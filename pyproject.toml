@@ -1,7 +1,7 @@
 [project]
 name = "yamlin"
 version = "0.6.0"
-description = "Add your description here"
+description = "YAML loader with custom tags that resolve secrets, environment variables and async values at load time"
 readme = "README.md"
 authors = [{ name = "Bart Frenk", email = "bart.frenk@gmail.com" }]
 requires-python = ">=3.12"
